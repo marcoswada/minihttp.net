@@ -2,15 +2,16 @@ Imports System
 Imports System.Collections
 Imports System.Collections.Generic
 Imports System.Collections.Specialized
-Imports System.Net
-Imports System.Windows.Forms
-Imports System.Drawing
-Imports System.Text
-Imports System.IO
-Imports System.Threading
 Imports System.Data
 Imports System.Data.OracleClient
 Imports System.Data.OleDb
+Imports System.Drawing
+Imports System.IO
+Imports System.Net
+Imports System.Reflection
+Imports System.Text
+Imports System.Threading
+Imports System.Windows.Forms
 'Imports System.Web.Serialization
 
 Namespace Global.Utils
@@ -183,20 +184,29 @@ Public Module MainModule
     Dim server As New MiniHttpServer()
     Public Sub Main()
         server.Start()
-        dim customIcon as new Icon(".\ico\logo.ico")
+
+        Dim assemblyPath As String = Assembly.GetExecutingAssembly().Location
+        dim aPth() = split(assemblyPath,"\")
+        redim Preserve aPth(ubound(aPth)-1)
+
+        dim customIcon as new Icon(join(aPth,"\") & "\ico\logo.ico")
         notifyIcon.Icon = customIcon  'SystemIcons.Application
         notifyIcon.Visible = True
         notifyIcon.Text = "Mini HTTP Server is running"
 
         Dim contextMenu As New ContextMenu()
         Dim menuItem1 As New MenuItem("About", AddressOf About_Click)
-        Dim menuItem2 As New MenuItem("Exit", AddressOf Exit_Click)
+        Dim menuItem2 As New MenuItem("Auto start", AddressOf autoStart_Click)
+        menuItem2.checked = len(My.Computer.Registry.getvalue("HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run","minihttp","")) > 0
+        Dim menuExit As New MenuItem("Exit", AddressOf Exit_Click)
         contextMenu.MenuItems.Add(menuItem1)
         contextMenu.MenuItems.Add(menuItem2)
+        contextMenu.MenuItems.Add(menuExit)
 
         notifyIcon.ContextMenu = contextMenu
 
         Application.Run()
+
     End Sub
 
     Private Sub notifyIcon_DoubleClick() Handles notifyIcon.DoubleClick
@@ -206,6 +216,19 @@ Public Module MainModule
     Private Sub About_Click(sender As Object, e As EventArgs)
         Dim frmAbout As New aboutForm
         frmAbout.Show()
+    End Sub
+    
+    Private Sub autoStart_Click()
+        dim contextMenu as ContextMenu = notifyIcon.contextMenu
+        Dim assemblyPath As String = Assembly.GetExecutingAssembly().Location
+        contextMenu.MenuItems(1).checked = not contextMenu.MenuItems(1).checked
+        if contextMenu.MenuItems(1).checked then
+            My.Computer.Registry.setValue("HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run","minihttp","""" & assemblyPath & """")
+        Else
+            dim baseKey = My.Computer.Registry.CurrentUser.OpenSubKey("SOFTWARE\Microsoft\Windows\CurrentVersion\Run",True)
+            baseKey.deleteValue("minihttp")
+        End If
+
     End Sub
 
     Private Sub Exit_Click(sender As Object, e As EventArgs)
